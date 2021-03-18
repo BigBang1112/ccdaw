@@ -1,7 +1,7 @@
 -- BIN
 -- binary reading and writing for ComputerCraft FS API
 -- lib by BigBang1112
--- license: The Unlicense (https://unlicense.org/)
+-- license: MIT
 
 bin = {
     handle = nil

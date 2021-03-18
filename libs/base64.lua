@@ -1,7 +1,7 @@
 -- base64
 -- from/to stream conversion of base64 for ComputerCraft FS API
 -- lib by BigBang1112
--- license: The Unlicense (https://unlicense.org/)
+-- license: MIT
 
 base64 = {
     table = {
