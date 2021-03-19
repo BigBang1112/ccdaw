@@ -2,7 +2,7 @@ ccdaw = {
     previous = 1
 }
 
-ccdaw.play_stamp = function (self)
+function ccdaw.play_stamp(self)
     local time = os.epoch("utc") - play
     local beat = time/1000/60*project.bpm
     local current = beat % (project.scale*4)

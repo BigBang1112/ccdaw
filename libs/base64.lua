@@ -16,7 +16,7 @@ base64 = {
 -- args:
 --   in_handle:
 --   out_handle:
-base64.to_base64 = function (self, in_handle, out_handle)
+function base64.to_base64(self, in_handle, out_handle)
     local num = nil
     repeat
         num = nil
@@ -46,7 +46,7 @@ base64.to_base64 = function (self, in_handle, out_handle)
     until num == nil
 end
 
-base64.from_base64 = function (self, in_handle, out_handle)
+function base64.from_base64(self, in_handle, out_handle)
     local indicies = nil
     repeat
         indicies = {}
