@@ -162,7 +162,17 @@ instruments = {"basedrum", "bass", "bell", "chime",
 major = {2, 2, 1, 2, 2, 2, 1}
 minor = {2, 1, 2, 2, 1, 2, 2}
 
-function load_project(p)
+function project_has_chords(p)
+    for name, track in pairs(p.tracks) do
+        if next(track.chords) ~= nil then
+            return true;
+        end
+    end
+
+    return false;
+end
+
+function daw_load(p)
     if p ~= nil then
         table_merge(project, p);
 
@@ -184,89 +194,157 @@ function load_project(p)
     project.version = current_version
 end
 
+function daw_save()
+    if filename ~= nil and fs.getFreeSpace(fs.getDir(filename)) > 0 then
+        --local h = fs.open(filename, "w");
+        --local song_data = textutils.serialize(project);
+        --song_data = song_data:gsub('%c', ''); -- Removes new lines
+        --song_data = song_data:gsub(" +"," "); -- Removes double spaces
+        --song_data = song_data:gsub('%s=%s', '='); -- Removes spaces between equals
+        --song_data = song_data:gsub('%[%s(%d+)%s%]', '%[%1%]'); -- Removes spaces between indexes
+        --h.write(song_data);
+        
+        bin.handle = fs.open(filename, "wb");
+
+        if version == nil or version == 0 then
+            bin:write_string("CCSONG", true)
+            bin:write_byte(project.version)
+            bin:write_string(project.name)
+            bin:write_string(project.author)
+            bin:write_short(project.bpm)
+            bin:write_byte(1/project.scale)
+
+            bin:write_byte(table_count(project.tracks))
+            for name, track in pairs(project.tracks) do
+                bin:write_string(name)
+                bin:write_string(track.instrument)
+                if track.volume == nil then
+                    bin:write_byte(1/3*255)
+                else
+                    bin:write_byte(track.volume/3*255)
+                end
+                bin:write_short(table_count(track.chords))
+                for time, chord in pairs(track.chords) do
+                    bin:write_short(time)
+                    bin:write_byte(table_count(chord))
+                    for key, note in pairs(chord) do
+                        bin:write_byte(key)
+                        bin:write_byte(0) -- flags
+                    end
+                end
+            end
+
+            bin:write_byte(table_count(project.lyrics))
+            for time, part in pairs(project.lyrics) do
+                bin:write_short(time)
+                bin:write_string(part.text)
+                if part.type == nil then
+                    bin:write_byte(0)
+                elseif part.type == "nv" then
+                    bin:write_byte(1)
+                elseif part.type == "ns" then
+                    bin:write_byte(2)
+                end
+            end
+        else
+            error("version 0 file")
+        end
+
+        bin.handle.close();
+    end
+end
+
 filename = arg[1];
+
 programdir = fs.getDir(shell.getRunningProgram())
 
 if filename ~= nil then
+    if not fs.exists(filename) then
+        filename = filename .. ".song";
+    end
+
     if fs.exists(filename) then
-        local h = fs.open(filename, "r")
-
-        local song_data = h.readAll()
-        local song_table = textutils.unserialize(song_data)
-
-        if song_table == nil then
-            h.close()
-
-            bin.handle = fs.open(filename, "rb")
-            local magic = bin:read_string(6)
-
-            if magic ~= "CCSONG" then
-                error("Not a CCSONG or corrupted file")
-            end
-
-            song_table = {}
-            song_table.version = bin:read_byte()
-            song_table.name = bin:read_string()
-            song_table.author = bin:read_string()
-            song_table.bpm = bin:read_short()
-            song_table.scale = 1/bin:read_byte()
-            song_table.tracks = {}
-            
-            local num_tracks = bin:read_byte()
-            for i=1, num_tracks do
-                local track = {}
-                local track_name = bin:read_string()
-                track.instrument = bin:read_string()
-                track.volume = bin:read_byte() / 255 * 3
-                track.chords = {}
-
-                local num_chords = bin:read_short()
-                for j=1, num_chords do
-                    local chord = {}
-                    local time = bin:read_short()
-                    local num_notes = bin:read_byte()
-                    for k=1, num_notes do
-                        local note = {}
-                        local key = bin:read_byte()
-                        local flags = bin:read_byte()
-
-                        chord[key] = note
-                    end
-
-                    track.chords[time] = chord;
-                end
-
-                song_table.tracks[track_name] = track
-            end
-
-            local num_lyrics_parts = bin:read_byte()
-
-            if num_lyrics_parts ~= nil then
-                for i=1, num_lyrics_parts do
-                    local part = {}
-                    local time = bin:read_short()
-                    part.text = bin:read_string()
-                    
-                    local type = bin:read_byte()
-                    if type == 1 then
-                        part.type = "nv"
-                    elseif type == 2 then
-                        part.type = "ns"
-                    end
-
-                    project.lyrics[time] = part
-                end
-            end
-
-            bin.handle.close()
+        if fs.getSize(filename) == 0 then
+            error("Empty file")
         else
-            h.close()
-        end
+            local h = fs.open(filename, "r")
 
-        load_project(song_table);
+            local song_data = h.readAll()
+            local song_table = textutils.unserialize(song_data)
+
+            if song_table == nil then
+                h.close()
+
+                bin.handle = fs.open(filename, "rb")
+                local magic = bin:read_string(6)
+
+                if magic ~= "CCSONG" then
+                    error("Not a CCSONG or corrupted file")
+                end
+
+                song_table = {}
+                song_table.version = bin:read_byte()
+                song_table.name = bin:read_string()
+                song_table.author = bin:read_string()
+                song_table.bpm = bin:read_short()
+                song_table.scale = 1/bin:read_byte()
+                song_table.tracks = {}
+                
+                local num_tracks = bin:read_byte()
+                for i=1, num_tracks do
+                    local track = {}
+                    local track_name = bin:read_string()
+                    track.instrument = bin:read_string()
+                    track.volume = bin:read_byte() / 255 * 3
+                    track.chords = {}
+
+                    local num_chords = bin:read_short()
+                    for j=1, num_chords do
+                        local chord = {}
+                        local time = bin:read_short()
+                        local num_notes = bin:read_byte()
+                        for k=1, num_notes do
+                            local note = {}
+                            local key = bin:read_byte()
+                            local flags = bin:read_byte()
+
+                            chord[key] = note
+                        end
+
+                        track.chords[time] = chord;
+                    end
+
+                    song_table.tracks[track_name] = track
+                end
+
+                local num_lyrics_parts = bin:read_byte()
+
+                if num_lyrics_parts ~= nil then
+                    for i=1, num_lyrics_parts do
+                        local part = {}
+                        local time = bin:read_short()
+                        part.text = bin:read_string()
+                        
+                        local type = bin:read_byte()
+                        if type == 1 then
+                            part.type = "nv"
+                        elseif type == 2 then
+                            part.type = "ns"
+                        end
+
+                        project.lyrics[time] = part
+                    end
+                end
+
+                bin.handle.close()
+            else
+                h.close()
+            end
+
+            daw_load(song_table);
+        end
     else
-        local hw = fs.open(filename, "w")
-        hw.close()
+        daw_save()
     end
 end
 
@@ -353,66 +431,6 @@ function daw_play()
         end
         timeline = timeline_offset
         play = nil
-    end
-end
-
-function daw_save()
-    if filename ~= nil and fs.getFreeSpace(fs.getDir(filename)) > 0 then
-        --local h = fs.open(filename, "w");
-        --local song_data = textutils.serialize(project);
-        --song_data = song_data:gsub('%c', ''); -- Removes new lines
-        --song_data = song_data:gsub(" +"," "); -- Removes double spaces
-        --song_data = song_data:gsub('%s=%s', '='); -- Removes spaces between equals
-        --song_data = song_data:gsub('%[%s(%d+)%s%]', '%[%1%]'); -- Removes spaces between indexes
-        --h.write(song_data);
-        
-        bin.handle = fs.open(filename, "wb");
-
-        if version == nil or version == 0 then
-            bin:write_string("CCSONG", true)
-            bin:write_byte(project.version)
-            bin:write_string(project.name)
-            bin:write_string(project.author)
-            bin:write_short(project.bpm)
-            bin:write_byte(1/project.scale)
-
-            bin:write_byte(table_count(project.tracks))
-            for name, track in pairs(project.tracks) do
-                bin:write_string(name)
-                bin:write_string(track.instrument)
-                if track.volume == nil then
-                    bin:write_byte(1/3*255)
-                else
-                    bin:write_byte(track.volume/3*255)
-                end
-                bin:write_short(table_count(track.chords))
-                for time, chord in pairs(track.chords) do
-                    bin:write_short(time)
-                    bin:write_byte(table_count(chord))
-                    for key, note in pairs(chord) do
-                        bin:write_byte(key)
-                        bin:write_byte(0) -- flags
-                    end
-                end
-            end
-
-            bin:write_byte(table_count(project.lyrics))
-            for time, part in pairs(project.lyrics) do
-                bin:write_short(time)
-                bin:write_string(part.text)
-                if part.type == nil then
-                    bin:write_byte(0)
-                elseif part.type == "nv" then
-                    bin:write_byte(1)
-                elseif part.type == "ns" then
-                    bin:write_byte(2)
-                end
-            end
-        else
-            error("version 0 file")
-        end
-
-        bin.handle.close();
     end
 end
 
@@ -612,7 +630,7 @@ function event()
                 if x >= 28 and x <= 30 and y == 2 then -- when click on BPM
                     typing = "bpm"
                 end
-                if x >= 8 and x <= 11 and y == 2 then -- when click on Play
+                if num == 1 and x >= 8 and x <= 11 and y == 2 then -- when click on Play
                     daw_play()
                 end
 
@@ -691,7 +709,12 @@ function event()
                     end
                 end
             elseif event == "terminate" then
-                clear_term()
+                clear_term();
+                if filename == nil and project_has_chords(project) then
+                    filename = "temp.song"
+                    daw_save()
+                    print("No file name specified.\nSong has been saved as temp.song");
+                end
                 terminate = true
             elseif event == "monitor_resize" then
                 update_monitor()
@@ -1440,7 +1463,7 @@ function render()
         sleep(0.05)
     end
     
-    clear_term()
+    --clear_term()
 end
 
 parallel.waitForAll(event, audio, render);
