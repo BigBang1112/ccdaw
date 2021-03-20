@@ -16,11 +16,15 @@ end
 
 local function starts_with(str, start)
     return str:sub(1, #start) == start;
- end
+end
+
+local function ends_with(str, ending)
+    return ending == "" or str:sub(-#ending) == ending
+end
 
 local files_to_ignore = {".gitignore"};
 
-install_all_songs = false;
+install_all_songs = true;
 install_dir = "";
 program_root_dir = "ccdaw";
 branch = "main";
@@ -64,15 +68,25 @@ if response == 200 then
             if install_all_songs or (not install_all_songs and not starts_with(blob.path, "songs/")) then
                 print("Downloading " .. blob.path .. "...");
 
-                local content = http.get(string.format(github_raw, author, repo, branch, blob.path)).readAll();
+                local is_binary = ends_with(blob.path, ".song");
+
+                local content = http.get(string.format(github_raw, author, repo, branch, blob.path), nil, is_binary).readAll();
                 if not content then
                     error("Downloading " .. blob.path .. " failed.");
                 end
 
+                local file = string.format("%s/%s/%s/%s", install_dir, program_root_dir, branch, blob.path)
+
                 if content == "" then
                     print("Skipping " .. blob.path .. " (empty file)");
+                elseif is_binary then
+                    local h = fs.open(file, "wb")
+                    for i = 1, #content do
+                        h.write(string.byte(content, i))
+                    end
+                    h.close()
                 else
-                    local h = fs.open(string.format("%s/%s/%s/%s", install_dir, program_root_dir, branch, blob.path), "w");
+                    local h = fs.open(file, "w");
                     h.write(content);
                     h.close();
                 end
@@ -90,20 +104,26 @@ if response == 200 then
 
     if fs.exists(daw_shortcut_file) then
         print("File '" .. daw_shortcut_file .. "' already exists. Skipping for safety.");
+
+        print("");
+    
+        print("Done!");
+    
+        sleep(1);
     else
         local h_daw = fs.open(daw_shortcut_file, "w");
         h_daw.write("args = {...};\n")
         h_daw.write(string.format("shell.run(\"%s\", table.concat(args, \" \"));", daw_path))
         h_daw.close();
 
+        print("");
+    
+        print("Done!");
+    
+        sleep(1);
+
         shell.run(daw_shortcut_file);
     end
-
-    print("");
-
-    print("Done!");
-
-    sleep(1);
 else
     request.close();
 end
