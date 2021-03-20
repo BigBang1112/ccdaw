@@ -256,16 +256,22 @@ end
 
 filename = arg[1];
 
+local function add_song_extension()
+    if not ends_with(filename, ".song") then
+        filename = filename .. ".song";
+    end
+end
+
 programdir = fs.getDir(shell.getRunningProgram())
 
 if filename ~= nil then
-    if not fs.exists(filename) then
-        filename = filename .. ".song";
+    if fs.isDir(filename) or not fs.exists(filename) then
+        add_song_extension();
     end
 
     if fs.exists(filename) then
         if fs.getSize(filename) == 0 then
-            error("Empty file")
+            error("Empty file: " .. filename)
         else
             local h = fs.open(filename, "r")
 
@@ -343,8 +349,6 @@ if filename ~= nil then
 
             daw_load(song_table);
         end
-    else
-        daw_save()
     end
 end
 
@@ -751,7 +755,8 @@ local function console_autocomplete(text)
         "lyrics print",
         "name",
         "author",
-        "e"
+        "e",
+        "save"
     }
 
     local periphs = peripheral.getNames()
@@ -1174,6 +1179,15 @@ function render()
                     else
                         write_console_line("DAW is not running on a monitor.")
                     end
+                end
+            elseif c[1] == "save" then
+                if c[2] == nil or c[2] == "" then
+                    write_console_line("?save [filename]")
+                else
+                    filename = c[2];
+                    add_song_extension();
+                    daw_save();
+                    write_console_line("Project saved as " .. filename)
                 end
             end
             typing = ""
