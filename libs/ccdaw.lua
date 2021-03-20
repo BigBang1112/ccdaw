@@ -40,6 +40,10 @@ function ccdaw.play_stamp(self)
                                 end
                             elseif s_mono ~= nil then
                                 s_mono.playSound(track.sound, volume*track_volume*note_vol, 2 ^ ((key-1 - 12) / 12))
+                            else
+                                for i, speaker in pairs(devices.speakers) do
+                                    speaker.playSound(track.sound, volume*track_volume*1, 2 ^ ((key-1 - 12) / 12))
+                                end
                             end
                         end
                         if track.instrument ~= nil then
@@ -52,6 +56,10 @@ function ccdaw.play_stamp(self)
                                 end
                             elseif s_mono ~= nil then
                                 s_mono.playNote(track.instrument, volume*track_volume*note_vol, key-1+key_shift)
+                            else
+                                for i, speaker in pairs(devices.speakers) do
+                                    speaker.playNote(track.instrument, volume*track_volume*1, key-1+key_shift)
+                                end
                             end
 
                             visualize_note(note_vol, key+key_shift)

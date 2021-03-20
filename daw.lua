@@ -64,9 +64,11 @@ devices = {
     }
 }
 
-speaker = peripheral.find("speaker");
-if speaker then
-    devices.speaker_mono.periph = speaker;
+speakers = { peripheral.find("speaker") };
+if #speakers == 1 then
+    devices.speaker_mono.periph = speakers[1];
+elseif #speakers > 1 then
+    devices.speakers = speakers;
 end
 
 local periph_left = peripheral.wrap("left")
@@ -560,6 +562,10 @@ function event()
                                         end
                                     elseif s_mono ~= nil then
                                         s_mono.playSound(track.sound, volume*track_volume*1, 2 ^ ((key-1 - 12) / 12))
+                                    else
+                                        for i, speaker in pairs(devices.speakers) do
+                                            speaker.playSound(track.sound, volume*track_volume*1, 2 ^ ((key-1 - 12) / 12))
+                                        end
                                     end
                                 end
                                 if track.instrument ~= nil then
@@ -572,6 +578,10 @@ function event()
                                         end
                                     elseif s_mono ~= nil then
                                         s_mono.playNote(track.instrument, volume*track_volume*1, key-1+key_shift)
+                                    else
+                                        for i, speaker in pairs(devices.speakers) do
+                                            speaker.playNote(track.instrument, volume*track_volume*1, key-1+key_shift)
+                                        end
                                     end
 
                                     if devices.visualizer.periph ~= nil then
