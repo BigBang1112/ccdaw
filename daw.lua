@@ -164,6 +164,8 @@ instruments = {"basedrum", "bass", "bell", "chime",
 major = {2, 2, 1, 2, 2, 2, 1}
 minor = {2, 1, 2, 2, 1, 2, 2}
 
+timers = {}
+
 function project_has_chords(p)
     for name, track in pairs(p.tracks) do
         if next(track.chords) ~= nil then
@@ -597,8 +599,10 @@ function event()
                     if y >= 4 and y <= 12 then
                         if x == sizeX then
                             scroll_timeline = scroll_timeline + 4 -- when click on next 4 beats
+                            timers["next4beats"] = os.startTimer(0.75)
                         elseif x == sizeX-1 then
                             scroll_timeline = scroll_timeline - 4 -- when click on previous 4 beats
+                            timers["prev4beats"] = os.startTimer(0.75)
                         end
                     end
                 end
@@ -721,6 +725,21 @@ function event()
                     elseif key_name == "down" then
                         scroll_timeline = scroll_timeline + 1
                     end
+                end
+            elseif event == "mouse_up" then
+                local num = p1;
+                if num == 1 then
+                    table.clear(timers);
+                end
+            elseif event == "timer" then
+                local id = p1;
+
+                if id == timers["next4beats"] then
+                    scroll_timeline = scroll_timeline + 4
+                    timers["next4beats"] = os.startTimer(0.05);
+                elseif id == timers["prev4beats"] then
+                    scroll_timeline = scroll_timeline - 4
+                    timers["prev4beats"] = os.startTimer(0.05);
                 end
             elseif event == "terminate" then
                 clear_term();

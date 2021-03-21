@@ -52,3 +52,9 @@ end
 function ends_with(str, ending)
     return ending == "" or str:sub(-#ending) == ending
 end
+
+function table.clear(t)
+    for k in next, t do
+        rawset(t, k, nil);
+    end
+end
